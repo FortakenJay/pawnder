@@ -1,0 +1,39 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+
+# Created at runtime (per machine / per game)
+calib/
+captures/
+recordings/
+logs/
+sessions/
+exports/
+
+# Secrets (copy .env.example to .env)
+.env
+
+# local Stockfish binary (see README: Quick start)
+engines/
+
+# Coach runtime
+coach.db
+coach.db-*
+
+# Firmware secrets (copy the *.example.h files)
+firmware/**/config.h
+firmware/**/wifi_config.h

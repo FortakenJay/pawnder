@@ -1,0 +1,13 @@
+numpy
+opencv-python
+pydantic
+PyYAML
+python-chess
+python-dotenv
+requests
+fastapi
+uvicorn
+pillow
+ultralytics>=8.4.0
+anthropic
+pytest

@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pawnder</title>
+<style>
+  :root {
+    --bg: #f4f1ea; --panel: #ffffff; --ink: #1d1b18; --muted: #6f6a60; --line: #ddd6c8;
+    --mistake: #b3261e; --threat: #b06000; --info: #3d5a80; --review: #2e7d32; --accent: #76b900;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #151412; --panel: #1f1d1a; --ink: #eeeae2; --muted: #9b958a; --line: #34312c;
+      --mistake: #ef6b62; --threat: #f0a640; --info: #8fb1dc; --review: #7cc47f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 system-ui, -apple-system, Segoe UI, sans-serif; }
+  header { display: flex; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  header h1 { font-size: 18px; margin: 0; letter-spacing: .02em; }
+  header .tag { font-size: 12px; color: var(--muted); }
+  header .spacer { flex: 1; }
+  button, select { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  button.on { background: var(--accent); color: #111; border-color: var(--accent); }
+  main { display: grid; grid-template-columns: minmax(0, 560px) minmax(0, 1fr); gap: 20px; padding: 20px; max-width: 1280px; margin: 0 auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; padding: 16px; } }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .boardwrap { display: flex; gap: 12px; }
+  #board { flex: 1; min-width: 0; }
+  #board img { width: 100%; display: block; border-radius: 4px; }
+  .evalbar { width: 22px; border-radius: 4px; overflow: hidden; display: flex; flex-direction: column; border: 1px solid var(--line); background: #222; }
+  .evalbar .w { background: #f5f5f5; transition: height .4s; margin-top: auto; }
+  .evalbar.flip .w { margin-top: 0; margin-bottom: auto; }  /* coaching Black: board and bar flipped */
+  .row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 10px; }
+  .big { font-size: 28px; font-weight: 700; }
+  .muted { color: var(--muted); }
+  #graph { width: 100%; height: 70px; margin-top: 10px; }
+  #latest { font-size: 22px; line-height: 1.35; min-height: 92px; }
+  #latest .k { display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .06em; padding: 2px 8px; border-radius: 6px; color: #fff; margin-bottom: 8px; }
+  .k.mistake { background: var(--mistake); } .k.threat { background: var(--threat); } .k.info { background: var(--info); } .k.review { background: var(--review); }
+  #feed { list-style: none; margin: 0; padding: 0; max-height: 300px; overflow-y: auto; }
+  #feed li { padding: 8px 0; border-top: 1px solid var(--line); }
+  #feed li .meta { font-size: 12px; color: var(--muted); }
+  #feed li.mistake { border-left: 3px solid var(--mistake); padding-left: 8px; }
+  #feed li.threat { border-left: 3px solid var(--threat); padding-left: 8px; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  pre { white-space: pre-wrap; font-size: 12px; background: var(--bg); padding: 8px; border-radius: 6px; }
+  #eink { width: 100%; max-width: 400px; image-rendering: pixelated; border: 6px solid #444; border-radius: 6px; background: #fff; display: block; }
+  .stack { display: grid; gap: 16px; align-content: start; }
+  #review { white-space: pre-wrap; }
+  .weak { font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pawnder</h1>
+  <span class="tag" id="models"></span>
+  <span class="spacer"></span>
+  <select id="demo"></select>
+  <button id="play">Replay demo</button>
+  <button id="end">End game</button>
+  <button id="voice">Voice off</button>
+</header>
+<main>
+  <section class="stack">
+    <div class="card">
+      <div class="boardwrap">
+        <div class="evalbar" title="evaluation"><div class="w" id="evalw" style="height:50%"></div></div>
+        <div id="board"><img id="boardimg" alt="current position" src="/board.svg"></div>
+      </div>
+      <div class="row"><span class="big" id="evaltext">0.0</span><span class="muted" id="status">waiting for a game</span></div>
+      <div class="muted" id="opening"></div>
+      <svg id="graph" viewBox="0 0 400 70" preserveAspectRatio="none"></svg>
+    </div>
+  </section>
+  <section class="stack">
+    <div class="card">
+      <div id="latest"><span class="k info">COACH</span><div>Waiting for the first move.</div></div>
+      <div class="row"><span class="muted">Recurring weakness</span><span class="weak" id="weak">none yet</span></div>
+      <div class="row muted" id="reads"></div>
+    </div>
+    <div class="card" id="reviewcard" hidden><b>Post-game review</b> <span class="muted">(Nemotron Ultra)</span><div id="review"></div></div>
+    <div class="card"><b>Coach feed</b><ul id="feed"></ul></div>
+    <div class="card"><b>E-paper screen</b> <span class="muted">(what the ESP32 shows)</span><img id="eink" alt="e-paper screen" src="/display.png"></div>
+  </section>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+let version = -1, screenVersion = -1, spoken = 0, voice = false, firstLoad = true;
+
+function share(ev) {
+  if (!ev) return 0.5;
+  if (ev.mate !== null) return ev.mate > 0 ? 1 : ev.mate < 0 ? 0 : (ev.white_cp > 0 ? 1 : 0);
+  return 1 / (1 + Math.exp(-0.00368208 * ev.white_cp));
+}
+
+function graph(evals) {
+  const g = $("graph"), n = Math.max(evals.length, 2);
+  const pts = evals.map((cp, i) => `${(i / (n - 1)) * 400},${35 - (cp / 1000) * 33}`).join(" ");
+  g.innerHTML = `<line x1="0" y1="35" x2="400" y2="35" stroke="currentColor" opacity=".25"/>` +
+    (evals.length ? `<polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="2"/>` : "");
+}
+
+function speak(text) {
+  if (!voice || !("speechSynthesis" in window)) return;
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 1.02;
+  speechSynthesis.speak(u);
+}
+
+function esc(s) { return String(s).replace(/[&<>"]/g, (c) => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
+
+function render(s) {
+  $("boardimg").src = "/board.svg?v=" + s.version;
+  $("evalw").style.height = (share(s.eval) * 100).toFixed(1) + "%";
+  $("evalw").parentElement.classList.toggle("flip", s.player === "black");
+  $("evaltext").textContent = s.eval ? s.eval.text : "-";
+  $("status").textContent = s.result ? `Game over ${s.result}` : `${s.white} vs ${s.black} · ${s.turn} to move · coaching ${s.player}`;
+  $("opening").textContent = s.opening || "";
+  $("weak").textContent = s.weakness || "none yet";
+  $("reads").textContent = s.rejected ? `${s.rejected} bad camera read(s) ignored (last: ${s.last_rejection})` : "";
+  $("models").textContent = s.llm.enabled ? `live: ${s.llm.fast_model} · review: ${s.llm.review_model}` : "Nemotron off (no key): template comments";
+  graph(s.evals);
+  const feed = s.feed;
+  const latest = [...feed].reverse().find((f) => f.kind !== "review") || null;
+  if (latest) {
+    const head = latest.kind === "mistake" ? `${latest.severity.toUpperCase()} · ${latest.label}` :
+                 latest.kind === "threat" ? `THREAT · after ${latest.label}` : "COACH";
+    $("latest").innerHTML = `<span class="k ${latest.kind}">${esc(head)}</span><div>${esc(latest.text)}</div>`;
+  }
+  $("feed").innerHTML = [...feed].reverse().map((f) => `<li class="${f.kind}">
+      <div class="meta">${esc(f.label || f.kind)} · ${esc(f.source)}${f.motifs.length ? " · " + esc(f.motifs.join(", ")) : ""}</div>
+      <div>${esc(f.text)}</div>
+      ${f.facts ? `<details><summary>engine facts sent to Nemotron</summary><pre>${esc(f.facts)}</pre></details>` : ""}
+    </li>`).join("");
+  $("reviewcard").hidden = !s.review;
+  $("review").textContent = s.review || "";
+  // speak what is new (not the backlog when the page first loads)
+  const last = feed.length ? feed[feed.length - 1].at : 0;
+  if (!firstLoad) feed.filter((f) => f.at > spoken && f.kind !== "info").forEach((f) => speak(f.text));
+  spoken = Math.max(spoken, last);
+  firstLoad = false;
+}
+
+async function poll() {
+  try {
+    const s = await (await fetch("/api/state")).json();
+    if (s.version !== version) { version = s.version; render(s); }
+    if (s.screen_version !== screenVersion) { screenVersion = s.screen_version; $("eink").src = "/display.png?v=" + screenVersion; }
+  } catch (e) { /* server restarting */ }
+  setTimeout(poll, 700);
+}
+
+async function loadDemos() {
+  const demos = await (await fetch("/api/demos")).json();
+  $("demo").innerHTML = demos.map((d) => `<option>${esc(d)}</option>`).join("");
+}
+
+$("play").onclick = () => fetch("/replay", {method: "POST", headers: {"Content-Type": "application/json"},
+  body: JSON.stringify({pgn: $("demo").value, interval: 4})});
+$("end").onclick = () => fetch("/game/end", {method: "POST", headers: {"Content-Type": "application/json"}, body: "{}"});
+$("voice").onclick = () => {
+  voice = !voice;
+  $("voice").textContent = voice ? "Voice on" : "Voice off";
+  $("voice").classList.toggle("on", voice);
+  if (voice) speak("Voice on.");
+};
+loadDemos();
+poll();
+</script>
+</body>
+</html>
