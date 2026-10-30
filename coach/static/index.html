@@ -59,6 +59,10 @@
   .side button + button { margin-left: -1px; }
   .divider { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
 
+  #offline { position: relative; z-index: 1; margin: 0; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--line);
+             border-left: 2px solid var(--threat); color: var(--ink); text-transform: none; letter-spacing: .04em; }
+  #offline code { color: var(--bone); font: inherit; }
+
   /* layout */
   main { display: grid; grid-template-columns: minmax(0, 540px) minmax(0, 1fr); gap: 56px; max-width: 1320px; margin: 0 auto; padding: 36px 24px 64px; }
   @media (max-width: 960px) {
@@ -143,11 +147,13 @@
     <button id="voice" aria-pressed="false">Voice off</button>
   </div>
 </header>
+<p class="label" id="offline" role="status" hidden>Can't reach the coach server. In the pawnder folder run
+  <code>.venv/bin/python -m coach serve</code>, then open <code>http://localhost:8000</code>.</p>
 <main>
   <section>
     <div class="boardwrap">
       <div class="evalbar" title="Evaluation"><div class="w" id="evalw" style="height:50%"></div></div>
-      <div id="board"><img id="boardimg" alt="Current position" src="/board.svg"></div>
+      <div id="board"><img id="boardimg" alt="" src="/board.svg" onerror="this.style.visibility='hidden'" onload="this.style.visibility=''"></div>
     </div>
     <div class="readout">
       <span class="tabular" id="evaltext">0.0</span>
@@ -180,7 +186,7 @@
     </div>
     <div class="block">
       <div class="label">E-paper screen · what the ESP32 shows</div>
-      <div class="eink"><img id="eink" alt="E-paper screen" src="/display.png"></div>
+      <div class="eink"><img id="eink" alt="" src="/display.png" onerror="this.style.visibility='hidden'" onload="this.style.visibility=''"></div>
     </div>
   </section>
 </main>
@@ -268,14 +274,18 @@ function render(s) {
 async function poll() {
   try {
     const s = await (await fetch("/api/state")).json();
+    $("offline").hidden = true;
     if (s.version !== version) { version = s.version; render(s); }
     if (s.screen_version !== screenVersion) { screenVersion = s.screen_version; $("eink").src = "/display.png?v=" + screenVersion; }
-  } catch (e) { /* server restarting */ }
+  } catch (e) {
+    $("offline").hidden = false;  // server stopped, restarting, or this file was opened straight from disk
+  }
   setTimeout(poll, 700);
 }
 
 async function loadDemos() {
-  const demos = await (await fetch("/api/demos")).json();
+  const demos = await fetch("/api/demos").then((r) => r.json()).catch(() => null);
+  if (!demos) { setTimeout(loadDemos, 3000); return; }  // wait for the server
   $("demo").innerHTML = demos.map((d) => `<option value="${esc(d)}">${esc(d.replace(/\.pgn$/, "").replace(/^demo\d+_/, "").replace(/_/g, " "))}</option>`).join("");
 }
 
