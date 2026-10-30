@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class CoachBridge:
-    def __init__(self, url: str, player: str = "white") -> None:
+    def __init__(self, url: str, player: str = "") -> None:
         self.url = url.rstrip("/")
         self.player = player
         self._queue: queue.Queue[tuple[str, dict]] = queue.Queue()
@@ -36,7 +36,8 @@ class CoachBridge:
 
     def _game_start(self, record: GameRecord) -> None:
         h = record.game.headers
-        body = {"white": h.get("White"), "black": h.get("Black"), "player": self.player, "fen": record.starting_fen}
+        body = {"white": h.get("White"), "black": h.get("Black"), "fen": record.starting_fen}
+        body["player"] = self.player or None  # None: the side picked on the coach's web page
         self._queue.put(("/game/new", body))
 
     def _move(self, record: GameRecord) -> None:

@@ -84,6 +84,10 @@ class Memory:
             )
             return int(cur.lastrowid or 0)
 
+    def set_player(self, game_id: int, player: str) -> None:
+        with self.lock, self.db:
+            self.db.execute("UPDATE games SET player = ? WHERE id = ?", (player, game_id))
+
     def finish_game(self, game_id: int, result: str, pgn: str) -> None:
         with self.lock, self.db:
             self.db.execute(

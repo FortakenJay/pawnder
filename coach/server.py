@@ -2,6 +2,7 @@
 
 POST /position {"fen": ...}       after each move vision detects
 POST /game/new, POST /game/end    start / finish a game
+POST /player {"player": ...}     coach white, black or both (the web page's picker)
 GET  /display.bmp                 the e-paper screen, 1-bit 800x480
 GET  /display/version             changes only when that screen does
 GET  /                            the coach's web page (board, eval, feed, voice)
@@ -13,6 +14,7 @@ import logging
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Literal
 
 import chess
 import chess.svg
@@ -27,6 +29,16 @@ logger = logging.getLogger(__name__)
 
 STATIC = Path(__file__).resolve().parent / "static"
 DEMOS = Path(__file__).resolve().parent / "data"
+BOARD_COLORS = {  # the web page's palette: bone and dark green
+    "square light": "#e8c9a0",
+    "square dark": "#1b4a28",
+    "square light lastmove": "#d6b06e",
+    "square dark lastmove": "#3f6b2e",
+    "margin": "#0d0d0d",
+    "coord": "#77746e",
+    "inner border": "#33322f",
+    "outer border": "#0d0d0d",
+}
 
 
 class PositionIn(BaseModel):
@@ -36,8 +48,12 @@ class PositionIn(BaseModel):
 class NewGameIn(BaseModel):
     white: str = "White"
     black: str = "Black"
-    player: str | None = None  # white, black or both; default from .env
+    player: str | None = None  # white, black or both; default: the side picked last
     fen: str | None = None
+
+
+class PlayerIn(BaseModel):
+    player: Literal["white", "black", "both"]
 
 
 class EndIn(BaseModel):
@@ -96,6 +112,10 @@ def create_app(service: CoachService, on_shutdown=None) -> FastAPI:  # noqa: C90
             raise HTTPException(422, "player must be white, black or both")
         return service.new_game(body.white, body.black, body.player, body.fen)
 
+    @app.post("/player")
+    def set_player(body: PlayerIn) -> dict:
+        return service.set_player(body.player)
+
     @app.post("/game/end")
     def end_game(body: EndIn) -> dict:
         return service.end_game(body.result)
@@ -123,7 +143,7 @@ def create_app(service: CoachService, on_shutdown=None) -> FastAPI:  # noqa: C90
             flipped = service.player == "black"
         last = board.peek() if board.move_stack else None
         check = board.king(board.turn) if board.is_check() else None
-        svg = chess.svg.board(board, lastmove=last, check=check, flipped=flipped, size=520)
+        svg = chess.svg.board(board, lastmove=last, check=check, flipped=flipped, size=520, colors=BOARD_COLORS)
         return Response(svg, media_type="image/svg+xml", headers={"Cache-Control": "no-store"})
 
     @app.get("/api/demos")

@@ -157,7 +157,7 @@ class PiecesSettings(BaseModel):
 
 class CoachSettings(BaseModel):
     url: str = ""  # the coach server, e.g. http://localhost:8000; empty = off
-    player: Literal["white", "black", "both"] = "white"  # side the coach coaches
+    player: Literal["", "white", "black", "both"] = ""  # side to coach; empty = picked on the coach's page
 
 
 class Settings(BaseModel):

@@ -91,7 +91,7 @@ class CoachService:
                 self.memory.finish_game(self.game_id, "*", str(self.pgn()))  # abandoned
             self.game = GameState(fen or chess.STARTING_FEN)
             self.white, self.black = white or "White", black or "Black"
-            self.player = (player or self.s.player).lower()
+            self.player = (player or self.player).lower()  # the side picked last carries over
             self.result, self.review = None, None
             self.game_id = self.memory.start_game(self.white, self.black, self.player)
             self.feed, self.evals, self.last_eval, self.opening = [], [], None, ""
@@ -100,6 +100,17 @@ class CoachService:
             logger.info("Game %d: %s vs %s, coaching %s", self.game_id, self.white, self.black, self.player)
             self.jobs.put(("start", self.game_id, self.game.board.copy()))
             return {"game_id": self.game_id}
+
+    def set_player(self, player: str) -> dict:
+        """Coach another side (white, black or both) from the next move on, and in later games."""
+        with self.lock:
+            player = player.lower()
+            if player != self.player:
+                self.player = player
+                if self.game_id:
+                    self.memory.set_player(self.game_id, player)
+                self._post(len(self.game.board.move_stack), "", "info", f"Now coaching {player}.", "system")
+            return {"player": self.player}
 
     def position(self, fen: str) -> dict:
         with self.lock:

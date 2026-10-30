@@ -98,7 +98,8 @@ are included in which Black falls for a knight fork, so memory builds up a strea
 ```
 
 Open **http://localhost:8000**: board, eval bar and graph, the coach feed, the e-paper preview and a
-**Voice** button. The page also has a **Replay demo** button to start any demo game.
+**Voice** button. The page also has a **Replay demo** button to start any demo game, and a
+**Coaching** switch (White / Black / Both). The demo games are Black's mistakes, so pick Black for them.
 
 To feed a running server over HTTP instead (this goes through the same `/position` endpoint the
 camera uses; `--noise 0.1` injects misreads to show they are ignored):
@@ -121,7 +122,7 @@ on). The laptop keeps internet for Token Factory and reaches both ESP32 boards.
 3. **E-paper display:** see below.
 4. **Vision:** `.venv/bin/python run.py play --start`. With `coach.url` set in
    [config.yaml](config.yaml) (default `http://localhost:8000`), every move it reads is posted to the
-   coach. `coach.player` picks the side being coached. Vision details: [docs/vision.md](docs/vision.md).
+   coach. Pick the side to coach on the web page (or pin it with `coach.player`). Vision details: [docs/vision.md](docs/vision.md).
 
 ### E-paper display (Waveshare 7.5" V2 + Waveshare ESP32 driver board)
 
@@ -163,13 +164,14 @@ driver board's A/B switch position for your panel in Waveshare's manual.
 | `POST /position {"fen": "..."}` | vision, after each move it reads. Returns `move`, `takeback`, `same` or `rejected` (with a reason) |
 | `POST /game/new {"white", "black", "player", "fen"}` | vision, at game start (`player`: white, black or both) |
 | `POST /game/end {"result": "1-0"}` | vision, at game end (checkmate/stalemate end the game on their own) |
+| `POST /player {"player": "black"}` | web page's side picker: coach white, black or both from the next move on |
 | `GET /display.bmp`, `GET /display/version` | e-paper ESP32 |
 | `GET /`, `GET /api/state`, `GET /board.svg`, `GET /display.png` | web page |
 | `POST /replay {"pgn", "interval", "noise"}` | web page's Replay demo button |
 
 ### Coach settings (`.env`)
 
-`COACH_PLAYER` (white/black/both), `COACH_MISTAKE_CP` (default 150; 300+ is called a blunder),
+`COACH_PLAYER` (white/black/both: the side at startup; the web page switches it), `COACH_MISTAKE_CP` (default 150; 300+ is called a blunder),
 `COACH_THREAT_CP` (250), `ENGINE_TIME_S` (0.4), `COACH_DB` (coach.db).
 
 ## Tests

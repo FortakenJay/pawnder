@@ -45,7 +45,7 @@ Deadline: **Fri Oct 30, 10:00 PDT**. Scope is ruthless: P0 must run end to end b
 ## P1
 
 - [ ] Post-game review with Nemotron Ultra (turning points, recurring weakness, 3 drills)
-- [x] Local web page: board, eval bar, coach feed, live (for the video)
+- [x] Local web page: board, eval bar, coach feed, live (for the video); same look as the drills site; side picker
 - [x] Voice: coach messages spoken (browser speech synthesis, no new dependency; not yet checked by ear)
 
 ## P2 (only if P0/P1 are solid)

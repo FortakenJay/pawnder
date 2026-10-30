@@ -104,4 +104,4 @@ pieces:                      # YOLO, used only to tell what a pawn promoted to
 
 coach:                       # Pawnder, the coach (python -m coach serve); empty url = off
   url: http://localhost:8000
-  player: white              # side the coach coaches: white, black or both
+  player: ""                 # side to coach: white, black or both; "" = pick it on the coach's web page
